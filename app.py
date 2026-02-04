@@ -2,78 +2,77 @@ import streamlit as st
 from google import genai
 from google.genai import types
 
-# Page Config
-st.set_page_config(page_title="Discover ThinkTank 2026", page_icon="🧠")
+# Page Configuration
+st.set_page_config(page_title="PulseCheck AI: Strategic Thinking", page_icon="🧠")
 
 # Sidebar for API Key
 with st.sidebar:
     st.header("Authentication")
-    api_key = st.text_input("Gemini API Key", type="password")
-    st.info("Using Gemini 2.5 Flash with 'Thinking' enabled.")
+    api_key = st.text_input("Gemini API Key", type="password", help="Enter your Gemini 2.5 key")
+    st.info("Now using 'Dynamic Thinking' for deep headline analysis.")
 
-st.title("🧠 Discover ThinkTank 2026")
-st.write("Deep-reasoning analysis for Google Discover headlines.")
+st.title("🧠 PulseCheck: Thinking Model")
+st.write("Deep strategic analysis for Google Discover based on 2026 interest graphs.")
 
-# Input Form
-with st.form("think_form"):
-    headline = st.text_input("Headline:", placeholder="Samsung Galaxy S26 vs iPhone 17...")
-    url = st.text_input("URL:", placeholder="https://tech-news.com/article-123")
-    topic = st.text_input("Primary Topic:", placeholder="Tech / Mobile")
+# Simple Input Form
+with st.form("analysis_form"):
+    headline = st.text_input("Headline:", placeholder="e.g., iPhone 17 Pro vs S26 Ultra...")
+    url = st.text_input("URL:", placeholder="https://example.com/...")
+    topic = st.text_input("Primary Topic:", placeholder="e.g., Tech / Smartphones")
     
-    # New: Choose Thinking Intensity
-    think_budget = st.select_slider(
-        "Thinking Depth (Token Budget):",
-        options=[0, 1024, 4096, 8192],
-        value=4096,
-        help="Higher budget = deeper analysis but slower response."
-    )
-    
-    submit = st.form_submit_button("Analyze with Thinking Model", type="primary")
+    submit_btn = st.form_submit_button("Analyze Headline", type="primary", use_container_width=True)
 
-if submit:
+# Application Logic
+if submit_btn:
     if not api_key:
-        st.error("Please enter your API Key.")
+        st.error("Please provide an API Key in the sidebar.")
+    elif not headline or not topic:
+        st.warning("Please fill in both the Headline and Primary Topic.")
     else:
         try:
+            # Initialize the 2026 GenAI Client
             client = genai.Client(api_key=api_key)
             
+            # The prompt is optimized for a thinking-enabled model
             prompt = f"""
-            Analyze the following for Google Discover 2026 performance:
+            Perform a deep-reasoning analysis for Google Discover performance.
+            
             Headline: {headline}
             URL: {url}
             Topic: {topic}
 
-            CRITICAL INSTRUCTIONS:
-            1. First, think deeply about the 2026 Google 'Interest Graph'. 
-            2. Evaluate if the entities mentioned have high 'freshness' scores.
-            3. Rate 1-10 on: Curiosity Gap, Entity Recognition, Trustworthiness, and Discover Potential.
-            4. Provide 3 high-performing alternate headlines with their logic and scores.
+            1. First, think about the current 2026 entity preferences and the 'Interest Graph' shifts.
+            2. Rate from 1-10: Curiosity Gap, Entity Recognition, Trustworthiness, and Discover Potential.
+            3. Provide a Strategic Verdict on the content's viability.
+            4. Provide 3 high-performing alternate headlines with logic and a predicted score (0-100).
             """
 
-            with st.spinner("Model is 'thinking' through the strategy..."):
-                # Call the model with thinking configuration
+            with st.spinner("Analyzing interest graphs..."):
+                # Call Gemini 2.5 with Thinking Config
                 response = client.models.generate_content(
                     model="gemini-2.5-flash",
                     contents=prompt,
                     config=types.GenerateContentConfig(
-                        # Enabling the Thinking Model feature
-                        thinking_config=types.ThinkingConfig(include_thoughts=True, budget_tokens=think_budget)
+                        thinking_config=types.ThinkingConfig(
+                            include_thoughts=True, # Shows the reasoning process
+                            # thinking_budget removed as per request to use dynamic defaults
+                        )
                     )
                 )
                 
-                # Layout the Results
-                st.success("Analysis Generated")
+                # Layout for results
+                st.success("Strategic Analysis Complete")
 
-                # Display the Model's "Thoughts" in an expander
+                # Display the Model's Reasoning (The "Thinking" Part)
                 if hasattr(response, 'thoughts'):
-                    with st.expander("👁️ View Model's Internal Reasoning (Chain of Thought)"):
-                        st.write(response.thoughts)
+                    with st.expander("👁️ View Strategic Reasoning Process", expanded=False):
+                        st.markdown(response.thoughts)
 
                 st.divider()
                 st.markdown(response.text)
 
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"Analysis Error: {str(e)}")
 
 st.divider()
-st.caption("Optimized for 2026 Google Search & Discover Ecosystems.")
+st.caption("PulseCheck 2026: Reasoning Engine Powered by Gemini 2.5.")
