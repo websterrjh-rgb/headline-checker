@@ -3,60 +3,47 @@ from google import genai
 from google.genai import types
 
 # Page Configuration
-st.set_page_config(page_title="PulseCheck 2026 | Discover Ranker", page_icon="📈")
+st.set_page_config(page_title="PulseCheck AI: Reasoning Engine", page_icon="🧠")
 
-# --- API KEY HANDLING (Streamlit Secrets) ---
+# --- API KEY HANDLING ---
+# 1. Check Streamlit Secrets first (for cloud deployment)
+# 2. Fallback to manual input if no secret is found
 if "GEMINI_API_KEY" in st.secrets:
     api_key = st.secrets["GEMINI_API_KEY"]
 else:
     with st.sidebar:
-        st.warning("⚠️ No API Key found in secrets.")
+        st.warning("No API Key found in secrets.")
         api_key = st.text_input("Enter Gemini API Key manually:", type="password")
-        st.info("Add 'GEMINI_API_KEY' to your Streamlit Secrets to skip this.")
+        st.info("To avoid entering this every time, add it to your Streamlit Secrets.")
 
-st.title("📈 PulseCheck 2026")
-st.write("Rate and refine headlines for the Google Discover Interest Graph.")
+st.title("🧠 PulseCheck: Thinking Model")
+st.write("Deep strategic analysis for Google Discover based on 2026 interest graphs.")
 
-# User Inputs
-with st.container(border=True):
-    headline = st.text_input("Current Headline:", placeholder="e.g., iPhone 17 Pro vs S26 Ultra...")
-    url = st.text_input("Source URL (Optional):", placeholder="https://example.com/tech-news")
-    topic = st.text_input("Primary Topic / Entities:", placeholder="e.g., Samsung Galaxy S26, Snapdragon 8 Gen 5")
+with st.form("analysis_form"):
+    headline = st.text_input("Headline:", placeholder="e.g., iPhone 17 Pro vs S26 Ultra...")
+    url = st.text_input("URL:", placeholder="https://example.com/...")
+    topic = st.text_input("Primary Topic:", placeholder="e.g., Tech / Smartphones")
     
-    submit_btn = st.form_submit_button("Analyze & Rate", type="primary", use_container_width=True) if 'form' not in locals() else None
-    # Note: Streamlit forms are best for multi-input, but for simplicity:
-    submit_btn = st.button("Analyze & Rate", type="primary", use_container_width=True)
+    submit_btn = st.form_submit_button("Analyze Headline", type="primary", use_container_width=True)
 
 if submit_btn:
     if not api_key:
-        st.error("Please provide an API Key.")
-    elif not headline or not topic:
-        st.warning("Headline and Topic are required for analysis.")
+        st.error("Please provide an API Key to continue.")
     else:
         try:
             client = genai.Client(api_key=api_key)
             
-            # The 2026 Strategy Prompt
             prompt = f"""
-            System: Act as a Google Discover Algorithm Specialist (2026 Edition).
-            Task: Analyze the following headline for the mobile 'Interest Feed'.
-            
+            Analyze the following for Google Discover 2026 performance.
             Headline: {headline}
             URL: {url}
             Topic: {topic}
 
-            1. Provide a score from 1-10 for:
-               - Curiosity Gap: Psychological pull without being clickbait.
-               - Entity Recognition: Presence of specific high-value people/brands/products.
-               - Trustworthiness: E-E-A-T score & compliance with anti-clickbait policies.
-               - Discover Potential: Likelihood of being featured in a user's feed.
-
-            2. Provide a 'Thinking Log': Deeply reason through why this will or won't perform.
-            3. Suggest 3 alternate headlines that score higher on ALL 4 scales while retaining factual accuracy. 
-            4. Include a final 'Predicted CTR' for each suggestion.
+            Use deep reasoning to evaluate the 'Interest Graph' and 'Entity Strength'.
+            Provide scores (1-10) and 3 high-performing alternate headlines with logic.
             """
 
-            with st.spinner("🧠 Gemini is reasoning through interest graph trends..."):
+            with st.spinner("Model is 'thinking' through the strategy..."):
                 response = client.models.generate_content(
                     model="gemini-2.5-flash",
                     contents=prompt,
@@ -64,29 +51,21 @@ if submit_btn:
                         thinking_config=types.ThinkingConfig(include_thoughts=True)
                     )
                 )
-
-                # --- UI DISPLAY ---
-                st.success("Analysis Complete")
-
-                # 1. Thinking Process (Expander)
-                if hasattr(response, 'thoughts'):
-                    with st.expander("👁️ View Algorithm Reasoning (Chain of Thought)"):
-                        st.markdown(response.thoughts)
-
-                # 2. Visual Feed Simulation
+                
+                # Show Feed Preview for context
                 st.subheader("📱 Feed Preview Simulation")
                 with st.container(border=True):
+                    st.caption("Google Discover Card (2026 Layout)")
                     st.image("https://placehold.co/1200x630/202124/FFFFFF?text=Article+Hero+Image", use_container_width=True)
-                    st.markdown(f"### {headline}")
-                    st.caption(f"Source • {topic} • 2026 Algorithm Approved")
+                    st.markdown(f"**{headline}**")
+                    st.caption(f"{topic} • Just Now")
+
+                if hasattr(response, 'thoughts'):
+                    with st.expander("👁️ View Strategic Reasoning Process"):
+                        st.markdown(response.thoughts)
 
                 st.divider()
-
-                # 3. Main Analysis Output
                 st.markdown(response.text)
 
         except Exception as e:
-            st.error(f"Error during analysis: {e}")
-
-st.markdown("---")
-st.caption("PulseCheck 2026 | Powered by Gemini 2.5 Flash Reasoning Engine")
+            st.error(f"Analysis Error: {str(e)}")
