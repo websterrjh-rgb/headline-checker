@@ -34,7 +34,7 @@ if submit_btn:
             client = genai.Client(api_key=api_key)
             
             prompt = f"""
-            Analyze the following for Google Discover 2026 performance.
+            Analyze the following for Google Discover 2026 performance, note the headline on the page and the content of the article.
             URL: {url}
 
             Use deep reasoning to evaluate the 'Curiosity Gap,' 'Entity Recognition,' 'Trustworthiness,' and 'Discover Potential.' 
