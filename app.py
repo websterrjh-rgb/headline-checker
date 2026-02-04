@@ -35,11 +35,9 @@ if submit_btn:
             
             prompt = f"""
             Analyze the following for Google Discover 2026 performance.
-            Headline: {headline}
             URL: {url}
-            Topic: {topic}
 
-            Use deep reasoning to evaluate the 'Interest Graph' and 'Entity Strength'.
+            Use deep reasoning to evaluate the 'Curiosity Gap,' 'Entity Recognition,' 'Trustworthiness,' and 'Discover Potential.' 
             Provide scores (1-10) and 3 high-performing alternate headlines with logic.
             """
 
