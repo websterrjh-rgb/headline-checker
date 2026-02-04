@@ -5,15 +5,16 @@ from google import genai
 from google.genai import types
 
 # Page Configuration
-st.set_page_config(page_title="PulseCheck 2026 | URL Analyzer", page_icon="🔗")
+st.set_page_config(page_title="PulseCheck 2026 | Discover Analyzer", page_icon="📈")
 
-# --- API KEY HANDLING ---
+# --- API KEY HANDLING (Streamlit Secrets) ---
 if "GEMINI_API_KEY" in st.secrets:
     api_key = st.secrets["GEMINI_API_KEY"]
 else:
     with st.sidebar:
-        st.warning("⚠️ API Key not found in secrets.")
-        api_key = st.text_input("Enter Gemini API Key:", type="password")
+        st.warning("⚠️ No API Key found in secrets.")
+        api_key = st.text_input("Enter Gemini API Key manually:", type="password")
+        st.info("Add 'GEMINI_API_KEY' to your Streamlit Secrets to skip this.")
 
 # --- HELPER: WEB SCRAPER ---
 def fetch_article_data(url):
@@ -23,9 +24,9 @@ def fetch_article_data(url):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # Extract Title (Headline)
-        title = soup.find('title').get_text() if soup.find('title') else "No title found"
-        # Extract Meta Description as a proxy for Topic
+        # Extract Headline (H1 or Title)
+        title = soup.find('h1').get_text() if soup.find('h1') else (soup.find('title').get_text() if soup.find('title') else "No title found")
+        # Extract Meta Description for Context
         meta_desc = soup.find('meta', attrs={'name': 'description'})
         topic_hint = meta_desc['content'] if meta_desc else "General Content"
         
@@ -34,71 +35,87 @@ def fetch_article_data(url):
         return None, str(e)
 
 # --- UI LAYOUT ---
-st.title("🔗 PulseCheck 2026")
-st.write("Enter a URL to analyze its Google Discover performance potential.")
+st.title("📈 PulseCheck 2026")
+st.write("Analyze a URL or a standalone headline for Google Discover performance.")
 
-url_input = st.text_input("Article URL:", placeholder="https://example.com/your-article")
+# Input Toggle
+input_mode = st.radio("Select Input Mode:", ["URL (Auto-Extract)", "Manual Headline"], horizontal=True)
 
-if st.button("Fetch & Analyze", type="primary", use_container_width=True):
+final_headline = ""
+final_topic = ""
+
+with st.container(border=True):
+    if input_mode == "URL (Auto-Extract)":
+        url_input = st.text_input("Paste Article URL:", placeholder="https://techblog.com/new-iphone-rumors")
+        if url_input:
+            with st.spinner("Scraping article..."):
+                fetched_title, fetched_topic = fetch_article_data(url_input)
+                if fetched_title:
+                    st.success(f"Extracted: **{fetched_title}**")
+                    final_headline = fetched_title
+                    final_topic = fetched_topic
+                else:
+                    st.error(f"Error fetching URL: {fetched_topic}")
+    else:
+        final_headline = st.text_input("Enter Headline:", placeholder="e.g., Why the S26 Ultra is the iPhone killer of 2026")
+        final_topic = st.text_input("Topic/Category (Optional):", placeholder="e.g., Tech, Smartphones")
+
+    submit_btn = st.button("Analyze for Discover", type="primary", use_container_width=True)
+
+# --- ANALYSIS LOGIC ---
+if submit_btn:
     if not api_key:
         st.error("Please provide an API Key.")
-    elif not url_input:
-        st.warning("Please enter a URL.")
+    elif not final_headline:
+        st.warning("Please provide a headline or URL.")
     else:
-        with st.spinner("🕵️ Scraping article and reasoning..."):
-            headline, topic = fetch_article_data(url_input)
+        try:
+            client = genai.Client(api_key=api_key)
             
-            if headline is None:
-                st.error(f"Could not fetch data: {topic}")
-            else:
-                st.info(f"**Extracted Headline:** {headline}")
-                
-                try:
-                    client = genai.Client(api_key=api_key)
-                    
-                    # Prompt specifically targeting your 4 pillars
-                    prompt = f"""
-                    System: Google Discover Algorithm Specialist (2026 Edition).
-                    URL: {url_input}
-                    Headline: {headline}
-                    Context/Topic: {topic}
+            prompt = f"""
+            Act as a Google Discover Specialist in 2026. 
+            Analyze this content for the mobile 'Interest Feed' algorithm.
 
-                    TASK:
-                    1. Rate the headline from 1-10 on these 4 pillars:
-                       - Curiosity Gap: Psychological pull without being clickbait.
-                       - Entity Recognition: Presence of specific people/brands/products.
-                       - Trustworthiness: E-E-A-T score & 2026 policy compliance.
-                       - Discover Potential: Likelihood of viral feed placement.
+            HEADLINE: {final_headline}
+            TOPIC: {final_topic}
 
-                    2. Show your 'Thinking Log' for the 2026 Interest Graph.
-                    3. Suggest 3 alternate headlines that score higher on ALL 4 scales.
-                    4. Predict a CTR % for each version.
-                    """
+            1. RATE (1-10) AND EXPLAIN:
+               - Curiosity Gap (Psychological pull without being clickbait)
+               - Entity Recognition (Presence of specific people/brands/products)
+               - Trustworthiness (E-E-A-T score / Compliance with 2026 policies)
+               - Discover Potential (Likelihood of being featured in the mobile feed)
 
-                    response = client.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=prompt,
-                        config=types.GenerateContentConfig(
-                            thinking_config=types.ThinkingConfig(include_thoughts=True)
-                        )
+            2. THINKING LOG: Show the reasoning process for the 2026 Interest Graph.
+            3. ALTERNATES: Provide 3 alternate headlines that score higher on ALL scales.
+            4. PREDICTED CTR: Provide a percentage for each version.
+            """
+
+            with st.spinner("🧠 Deep reasoning in progress..."):
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        thinking_config=types.ThinkingConfig(include_thoughts=True)
                     )
+                )
 
-                    # --- RESULTS DISPLAY ---
-                    if hasattr(response, 'thoughts'):
-                        with st.expander("👁️ View Algorithm Reasoning"):
-                            st.markdown(response.thoughts)
+                # Thinking Expandable
+                if hasattr(response, 'thoughts'):
+                    with st.expander("👁️ View Strategic Reasoning"):
+                        st.markdown(response.thoughts)
 
-                    st.subheader("📱 Feed Preview")
-                    with st.container(border=True):
-                        st.image("https://placehold.co/1200x630/202124/FFFFFF?text=Discover+Hero", use_container_width=True)
-                        st.markdown(f"### {headline}")
-                        st.caption(f"{topic[:100]}...")
+                # Feed Preview
+                st.subheader("📱 Discover Feed Simulation")
+                with st.container(border=True):
+                    st.image("https://placehold.co/1200x630/202124/FFFFFF?text=Discover+Preview", use_container_width=True)
+                    st.markdown(f"### {final_headline}")
+                    st.caption(f"Source • {final_topic if final_topic else 'General'} • 2026 Algorithm")
 
-                    st.divider()
-                    st.markdown(response.text)
+                st.divider()
+                st.markdown(response.text)
 
-                except Exception as e:
-                    st.error(f"AI Analysis Error: {e}")
+        except Exception as e:
+            st.error(f"Analysis Error: {str(e)}")
 
 st.markdown("---")
-st.caption("PulseCheck 2026 | Automated URL Extraction + Gemini Reasoning")
+st.caption("PulseCheck 2026 | Powered by Gemini 2.5 Flash Thinking Model")
