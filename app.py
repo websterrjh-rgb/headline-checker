@@ -72,6 +72,7 @@ if submit_btn:
         try:
             client = genai.Client(api_key=api_key)
             
+            # --- MODIFIED PROMPT FOR BREVITY & SENTENCE CASE ---
             prompt = f"""
             Act as a Google Discover Specialist in 2026. 
             Analyze this content for the mobile 'Interest Feed' algorithm.
@@ -79,15 +80,19 @@ if submit_btn:
             HEADLINE: {final_headline}
             TOPIC: {final_topic}
 
-            1. RATE (1-10) AND EXPLAIN:
-               - Curiosity Gap (Psychological pull without being clickbait)
-               - Entity Recognition (Presence of specific people/brands/products)
-               - Trustworthiness (E-E-A-T score / Compliance with 2026 policies)
-               - Discover Potential (Likelihood of being featured in the mobile feed)
+            STRICT OUTPUT RULES:
+            - Keep the analysis **short and punchy** (bullet points only, no fluff).
+            - All suggested headlines must be in **sentence case** (only capitalize the first letter and proper nouns).
 
-            2. THINKING LOG: Show the reasoning process for the 2026 Interest Graph.
-            3. ALTERNATES: Provide 3 alternate headlines that score higher on ALL scales.
-            4. PREDICTED CTR: Provide a percentage for each version.
+            1. SCORECARD (1-10) with 1-sentence rationale:
+               - Curiosity Gap
+               - Entity Recognition
+               - Trustworthiness (E-E-A-T)
+               - Discover Potential
+
+            2. OPTIMIZED ALTERNATES: 
+               Provide 3 better headlines in **sentence case**.
+               Include a predicted CTR% for each.
             """
 
             with st.spinner("🧠 Deep reasoning in progress..."):
