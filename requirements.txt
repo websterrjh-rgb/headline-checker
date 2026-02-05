@@ -1,5 +1,4 @@
-streamlit 
-openai 
-google-genai 
-requests 
+streamlit
+google-genai
 beautifulsoup4
+requests
