@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 import google.generativeai as genai
 
 # Page Configuration
-st.set_page_config(page_title="PulseCheck 2026", page_icon="📈")
+st.set_page_config(page_title="PulseCheck 2026", page_icon="🧠")
 
 # --- ⚠️ COMPLIANCE WARNING ---
 st.warning("DO NOT USE HEADLINES VERBATIM. MODIFY PER AI CONTENT POLICY.", icon="⚠️")
@@ -36,20 +36,19 @@ def fetch_article_data(url):
         return None
 
 # --- UI LAYOUT ---
-st.title("📈 PulseCheck 2026")
-st.write("Analyze headlines for Google Discover.")
+st.title("🧠 PulseCheck 2026")
+st.caption("Powered by Gemini 3.0 Thinking Model")
 
 # Toggle between modes
 input_mode = st.radio("Select Input Mode:", ["URL (Auto-Extract)", "Manual Headline"], horizontal=True)
 
-# Initialize variables to prevent errors
+# Initialize variables
 final_headline = None
 final_topic = None
 trigger_analysis = False
 
 # --- INPUT SECTION ---
 with st.container(border=True):
-    # We use a FORM to make manual entry reliable
     with st.form("analysis_form"):
         if input_mode == "URL (Auto-Extract)":
             url_input = st.text_input("Paste Article URL:")
@@ -60,8 +59,7 @@ with st.container(border=True):
             manual_headline = st.text_input("Enter Headline:", placeholder="Type your headline here...")
             manual_topic = st.text_input("Topic (Optional):", placeholder="e.g. Tech")
 
-        # The Form Submit Button
-        submitted = st.form_submit_button("Analyze Headline", type="primary", use_container_width=True)
+        submitted = st.form_submit_button("Analyze with Gemini 3", type="primary", use_container_width=True)
 
     if submitted:
         if input_mode == "URL (Auto-Extract)" and url_input:
@@ -86,9 +84,11 @@ with st.container(border=True):
 # --- ANALYSIS LOGIC ---
 if trigger_analysis and final_headline and api_key:
     try:
-        # Use the Stable Library Configuration
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        
+        # ⚠️ UPDATED: Using Gemini 3.0 Thinking Model
+        # Note: If this exact alias is 404, try 'gemini-2.0-flash-thinking-exp'
+        model = genai.GenerativeModel('gemini-3.0-thinking')
         
         prompt = f"""
         Act as a Google Discover Specialist (2026).
@@ -101,21 +101,3 @@ if trigger_analysis and final_headline and api_key:
         
         1. Score (1-10) with 1-sentence rationale:
            - Curiosity Gap
-           - Entity Recognition
-           - Trustworthiness
-           - Discover Potential
-        
-        2. Provide 3 sentence-case alternates. Format:
-           * [Headline] 
-             - CTR: [X]% 
-             - Why: [Reason]
-        """
-        
-        with st.spinner("Analyzing..."):
-            response = model.generate_content(prompt)
-            
-            st.subheader("Results")
-            st.markdown(response.text)
-            
-    except Exception as e:
-        st.error(f"API Error: {e}")
