@@ -79,25 +79,4 @@ with st.container(border=True):
             trigger_analysis = True
         
         else:
-            st.warning("Please enter a URL or Headline.")
-
-# --- ANALYSIS LOGIC ---
-if trigger_analysis and final_headline and api_key:
-    try:
-        genai.configure(api_key=api_key)
-        
-        # ⚠️ UPDATED: Using Gemini 3.0 Thinking Model
-        # Note: If this exact alias is 404, try 'gemini-2.0-flash-thinking-exp'
-        model = genai.GenerativeModel('gemini-3.0-thinking')
-        
-        prompt = f"""
-        Act as a Google Discover Specialist (2026).
-        Headline: "{final_headline}"
-        Topic: "{final_topic}"
-
-        STRICT RULES:
-        - Bullet points only.
-        - Alternate headlines must be SENTENCE CASE.
-        
-        1. Score (1-10) with 1-sentence rationale:
-           - Curiosity Gap
+            st
