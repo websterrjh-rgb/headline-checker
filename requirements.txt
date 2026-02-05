@@ -1,1 +1,6 @@
-pip install streamlit openai google-genai requests beautifulsoup4
+pip install 
+streamlit 
+openai 
+google-genai 
+requests 
+beautifulsoup4
