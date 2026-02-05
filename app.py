@@ -7,14 +7,13 @@ from google.genai import types
 # Page Configuration
 st.set_page_config(page_title="PulseCheck 2026 | Discover Analyzer", page_icon="📈")
 
-# --- API KEY HANDLING (Streamlit Secrets) ---
+# --- API KEY HANDLING ---
 if "GEMINI_API_KEY" in st.secrets:
     api_key = st.secrets["GEMINI_API_KEY"]
 else:
     with st.sidebar:
         st.warning("⚠️ No API Key found in secrets.")
         api_key = st.text_input("Enter Gemini API Key manually:", type="password")
-        st.info("Add 'GEMINI_API_KEY' to your Streamlit Secrets to skip this.")
 
 # --- HELPER: WEB SCRAPER ---
 def fetch_article_data(url):
@@ -24,9 +23,8 @@ def fetch_article_data(url):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # Extract Headline (H1 or Title)
+        # Extract Headline and Description
         title = soup.find('h1').get_text() if soup.find('h1') else (soup.find('title').get_text() if soup.find('title') else "No title found")
-        # Extract Meta Description for Context
         meta_desc = soup.find('meta', attrs={'name': 'description'})
         topic_hint = meta_desc['content'] if meta_desc else "General Content"
         
@@ -36,9 +34,9 @@ def fetch_article_data(url):
 
 # --- UI LAYOUT ---
 st.title("📈 PulseCheck 2026")
-st.write("Analyze a URL or a standalone headline for Google Discover performance.")
+st.write("Analyze headlines for Google Discover with AI-explained improvements.")
 
-# Input Toggle
+# Input Mode
 input_mode = st.radio("Select Input Mode:", ["URL (Auto-Extract)", "Manual Headline"], horizontal=True)
 
 final_headline = ""
@@ -72,7 +70,7 @@ if submit_btn:
         try:
             client = genai.Client(api_key=api_key)
             
-            # --- MODIFIED PROMPT FOR BREVITY & SENTENCE CASE ---
+            # --- PROMPT WITH EXPLAINED RATINGS ---
             prompt = f"""
             Act as a Google Discover Specialist in 2026. 
             Analyze this content for the mobile 'Interest Feed' algorithm.
@@ -91,11 +89,14 @@ if submit_btn:
                - Discover Potential
 
             2. OPTIMIZED ALTERNATES: 
-               Provide 3 better headlines in **sentence case**.
-               Include a predicted CTR% for each.
+               Provide 3 better headlines in **sentence case**. 
+               For EACH alternate, strictly follow this format:
+               * **[Headline Text]**
+                 - *Predicted CTR:* [Percentage]
+                 - *Why it wins:* [Explain the specific psychological or algorithmic reason this scores higher than the original]
             """
 
-            with st.spinner("🧠 Deep reasoning in progress..."):
+            with st.spinner("🧠 Reasoning through Interest Graph..."):
                 response = client.models.generate_content(
                     model="gemini-2.5-flash",
                     contents=prompt,
