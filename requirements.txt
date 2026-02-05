@@ -1,4 +1,5 @@
-pip install 
+pip
+install 
 streamlit 
 openai 
 google-genai 
