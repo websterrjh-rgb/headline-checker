@@ -1,118 +1,130 @@
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 # Page Configuration
-st.set_page_config(page_title="PulseCheck 2026", page_icon="📈")
+st.set_page_config(page_title="PulseCheck 2026 | Discover Analyzer", page_icon="📈")
 
 # --- ⚠️ COMPLIANCE WARNING ---
-st.warning("DO NOT USE HEADLINES VERBATIM. MODIFY PER AI CONTENT POLICY.", icon="⚠️")
+st.warning("DO NOT USE HEADLINES VERBATIM, PLEASE MODIFY THEM PER FUTURE'S AI CONTENT POLICY", icon="⚠️")
 
 # --- API KEY HANDLING ---
 if "GEMINI_API_KEY" in st.secrets:
     api_key = st.secrets["GEMINI_API_KEY"]
 else:
     with st.sidebar:
-        api_key = st.text_input("Enter Gemini API Key:", type="password")
+        st.warning("⚠️ No API Key found in secrets.")
+        api_key = st.text_input("Enter Gemini API Key manually:", type="password")
 
 # --- HELPER: WEB SCRAPER ---
 def fetch_article_data(url):
     try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # Robust title extraction
-        title = "No title found"
-        if soup.find('h1'):
-            title = soup.find('h1').get_text().strip()
-        elif soup.title:
-            title = soup.title.string.strip()
-            
-        return title
+        # Extract Headline and Description
+        title = soup.find('h1').get_text() if soup.find('h1') else (soup.find('title').get_text() if soup.find('title') else "No title found")
+        meta_desc = soup.find('meta', attrs={'name': 'description'})
+        topic_hint = meta_desc['content'] if meta_desc else "General Content"
+        
+        return title.strip(), topic_hint.strip()
     except Exception as e:
-        return None
+        return None, str(e)
 
 # --- UI LAYOUT ---
 st.title("📈 PulseCheck 2026")
-st.write("Analyze headlines for Google Discover.")
+st.write("Analyze headlines for Google Discover with AI-explained improvements.")
 
-# Toggle between modes
+# Input Mode
 input_mode = st.radio("Select Input Mode:", ["URL (Auto-Extract)", "Manual Headline"], horizontal=True)
 
-final_headline = None
-final_topic = None
-trigger_analysis = False
+final_headline = ""
+final_topic = ""
 
-# --- INPUT SECTION ---
 with st.container(border=True):
-    with st.form("analysis_form"):
-        if input_mode == "URL (Auto-Extract)":
-            url_input = st.text_input("Paste Article URL:")
-            manual_headline = None
-            manual_topic = None
-        else:
-            url_input = None
-            manual_headline = st.text_input("Enter Headline:", placeholder="Type your headline here...")
-            manual_topic = st.text_input("Topic (Optional):", placeholder="e.g. Tech")
-
-        submitted = st.form_submit_button("Analyze Headline", type="primary", use_container_width=True)
-
-    if submitted:
-        if input_mode == "URL (Auto-Extract)" and url_input:
-            with st.spinner("Scraping URL..."):
-                extracted_title = fetch_article_data(url_input)
-                if extracted_title:
-                    st.success(f"Extracted: {extracted_title}")
-                    final_headline = extracted_title
-                    final_topic = "General"
-                    trigger_analysis = True
+    if input_mode == "URL (Auto-Extract)":
+        url_input = st.text_input("Paste Article URL:", placeholder="https://techblog.com/new-iphone-rumors")
+        if url_input:
+            with st.spinner("Scraping article..."):
+                fetched_title, fetched_topic = fetch_article_data(url_input)
+                if fetched_title:
+                    st.success(f"Extracted: **{fetched_title}**")
+                    final_headline = fetched_title
+                    final_topic = fetched_topic
                 else:
-                    st.error("Could not read URL. Try Manual Mode.")
-        
-        elif input_mode == "Manual Headline" and manual_headline:
-            final_headline = manual_headline
-            final_topic = manual_topic if manual_topic else "General"
-            trigger_analysis = True
-        
-        else:
-            st.warning("Please enter a URL or Headline.")
+                    st.error(f"Error fetching URL: {fetched_topic}")
+    else:
+        final_headline = st.text_input("Enter Headline:", placeholder="e.g., Why the S26 Ultra is the iPhone killer of 2026")
+        final_topic = st.text_input("Topic/Category (Optional):", placeholder="e.g., Tech, Smartphones")
+
+    submit_btn = st.button("Analyze for Discover", type="primary", use_container_width=True)
 
 # --- ANALYSIS LOGIC ---
-if trigger_analysis and final_headline and api_key:
-    try:
-        genai.configure(api_key=api_key)
-        
-        # ✅ USE THIS STABLE MODEL TO FIX THE 404 ERROR
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        prompt = f"""
-        Act as a Google Discover Specialist (2026).
-        Headline: "{final_headline}"
-        Topic: "{final_topic}"
-
-        STRICT RULES:
-        - Bullet points only.
-        - Alternate headlines must be SENTENCE CASE.
-        
-        1. Score (1-10) with 1-sentence rationale:
-           - Curiosity Gap
-           - Entity Recognition
-           - Trustworthiness
-           - Discover Potential
-        
-        2. Provide 3 sentence-case alternates. Format:
-           * [Headline] 
-             - CTR: [X]% 
-             - Why: [Reason]
-        """
-        
-        with st.spinner("Analyzing..."):
-            response = model.generate_content(prompt)
-            st.subheader("Results")
-            st.markdown(response.text)
+if submit_btn:
+    if not api_key:
+        st.error("Please provide an API Key.")
+    elif not final_headline:
+        st.warning("Please provide a headline or URL.")
+    else:
+        try:
+            client = genai.Client(api_key=api_key)
             
-    except Exception as e:
-        st.error(f"API Error: {e}")
+            # --- PROMPT WITH EXPLAINED RATINGS ---
+            prompt = f"""
+            Act as a Google Discover Specialist in 2026. 
+            Analyze this content for the mobile 'Interest Feed' algorithm.
+
+            HEADLINE: {final_headline}
+            TOPIC: {final_topic}
+
+            STRICT OUTPUT RULES:
+            - Keep the analysis **short and punchy** (bullet points only, no fluff).
+            - All suggested headlines must be in **sentence case** (only capitalize the first letter and proper nouns).
+
+            1. SCORECARD (1-10) with 1-sentence rationale:
+               - Curiosity Gap
+               - Entity Recognition
+               - Trustworthiness (E-E-A-T)
+               - Discover Potential
+
+            2. OPTIMIZED ALTERNATES: 
+               Provide 3 better headlines in **sentence case**. 
+               For EACH alternate, strictly follow this format:
+               * **[Headline Text]**
+                 - *Predicted CTR:* [Percentage]
+                 - *Why it wins:* [Explain the specific psychological or algorithmic reason this scores higher than the original]
+            """
+
+            with st.spinner("🧠 Reasoning through Interest Graph..."):
+                response = client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        thinking_config=types.ThinkingConfig(include_thoughts=True)
+                    )
+                )
+
+                # Thinking Expandable
+                if hasattr(response, 'thoughts'):
+                    with st.expander("👁️ View Strategic Reasoning"):
+                        st.markdown(response.thoughts)
+
+                # Feed Preview
+                st.subheader("📱 Discover Feed Simulation")
+                with st.container(border=True):
+                    st.image("https://placehold.co/1200x630/202124/FFFFFF?text=Discover+Preview", use_container_width=True)
+                    st.markdown(f"### {final_headline}")
+                    st.caption(f"Source • {final_topic if final_topic else 'General'} • 2026 Algorithm")
+
+                st.divider()
+                st.markdown(response.text)
+
+        except Exception as e:
+            st.error(f"Analysis Error: {str(e)}")
+
+st.markdown("---")
+st.caption("PulseCheck 2026 | Powered by Gemini 2.5 Flash Thinking Model")
