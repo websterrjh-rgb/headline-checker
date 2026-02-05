@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 import google.generativeai as genai
 
 # Page Configuration
-st.set_page_config(page_title="PulseCheck 2026", page_icon="🧠")
+st.set_page_config(page_title="PulseCheck 2026", page_icon="📈")
 
 # --- ⚠️ COMPLIANCE WARNING ---
 st.warning("DO NOT USE HEADLINES VERBATIM. MODIFY PER AI CONTENT POLICY.", icon="⚠️")
@@ -36,13 +36,12 @@ def fetch_article_data(url):
         return None
 
 # --- UI LAYOUT ---
-st.title("🧠 PulseCheck 2026")
-st.caption("Powered by Gemini 3.0 Thinking Model")
+st.title("📈 PulseCheck 2026")
+st.write("Analyze headlines for Google Discover.")
 
 # Toggle between modes
 input_mode = st.radio("Select Input Mode:", ["URL (Auto-Extract)", "Manual Headline"], horizontal=True)
 
-# Initialize variables
 final_headline = None
 final_topic = None
 trigger_analysis = False
@@ -59,7 +58,7 @@ with st.container(border=True):
             manual_headline = st.text_input("Enter Headline:", placeholder="Type your headline here...")
             manual_topic = st.text_input("Topic (Optional):", placeholder="e.g. Tech")
 
-        submitted = st.form_submit_button("Analyze with Gemini 3", type="primary", use_container_width=True)
+        submitted = st.form_submit_button("Analyze Headline", type="primary", use_container_width=True)
 
     if submitted:
         if input_mode == "URL (Auto-Extract)" and url_input:
@@ -86,11 +85,9 @@ if trigger_analysis and final_headline and api_key:
     try:
         genai.configure(api_key=api_key)
         
-        # Using the Thinking Model
-        # If 'gemini-3.0-thinking' fails, try 'gemini-2.0-flash-thinking-exp'
-        model = genai.GenerativeModel('gemini-2.0-flash-thinking-exp')
+        # ✅ USE THIS STABLE MODEL TO FIX THE 404 ERROR
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # --- FIXED PROMPT SYNTAX ---
         prompt = f"""
         Act as a Google Discover Specialist (2026).
         Headline: "{final_headline}"
@@ -111,13 +108,11 @@ if trigger_analysis and final_headline and api_key:
              - CTR: [X]% 
              - Why: [Reason]
         """
-        # ---------------------------
         
-        with st.spinner("Gemini is reasoning..."):
+        with st.spinner("Analyzing..."):
             response = model.generate_content(prompt)
-            st.subheader("Deep Reasoning Results")
+            st.subheader("Results")
             st.markdown(response.text)
             
     except Exception as e:
         st.error(f"API Error: {e}")
-        st.info("Tip: If you get a 404, check the model name in the code.")
