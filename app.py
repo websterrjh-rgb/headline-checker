@@ -19,6 +19,8 @@ else:
         api_key = st.text_input("Enter Gemini API Key manually:", type="password")
 
 # --- HELPER: WEB SCRAPER ---
+# We cache this too so we don't re-scrape the same URL unnecessarily
+@st.cache_data(show_spinner=False)
 def fetch_article_data(url):
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
@@ -34,6 +36,55 @@ def fetch_article_data(url):
         return title.strip(), topic_hint.strip()
     except Exception as e:
         return None, str(e)
+
+# --- CORE LOGIC: CACHED AI ANALYSIS ---
+# This is the key fix. We wrap the API call in a cached function.
+# Streamlit will store the result for this specific combination of inputs.
+@st.cache_data(show_spinner=False)
+def analyze_content(headline, topic, _api_key):
+    # Note: _api_key starts with an underscore to tell Streamlit NOT to hash it for caching purposes
+    # (though usually fine here, it's best practice for secrets)
+    
+    client = genai.Client(api_key=_api_key)
+    
+    prompt = f"""
+    Act as a Google Discover Specialist in 2026. 
+    Analyze this content for the mobile 'Interest Feed' algorithm.
+
+    HEADLINE: {headline}
+    TOPIC: {topic}
+
+    STRICT OUTPUT RULES:
+    - Keep the analysis **short and punchy** (bullet points only, no fluff).
+    - All suggested headlines must be in **sentence case** (only capitalize the first letter and proper nouns).
+
+    1. SCORECARD (1-10) with 1-sentence rationale:
+       - Curiosity Gap
+       - Entity Recognition
+       - Trustworthiness (E-E-A-T)
+       - Discover Potential
+
+    2. OPTIMIZED ALTERNATES: 
+       Provide 3 better headlines in **sentence case**. 
+       For EACH alternate, strictly follow this format:
+       * **[Headline Text]**
+         - *Predicted CTR:* [Percentage]
+         - *Why it wins:* [Explain the specific psychological or algorithmic reason this scores higher than the original]
+    """
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            thinking_config=types.ThinkingConfig(include_thoughts=True)
+        )
+    )
+    
+    # We return an object or dict containing both thoughts and text
+    return {
+        "text": response.text,
+        "thoughts": getattr(response, 'thoughts', None)
+    }
 
 # --- UI LAYOUT ---
 st.title("📈 PulseCheck 2026")
@@ -71,47 +122,15 @@ if submit_btn:
         st.warning("Please provide a headline or URL.")
     else:
         try:
-            client = genai.Client(api_key=api_key)
-            
-            # --- PROMPT WITH EXPLAINED RATINGS ---
-            prompt = f"""
-            Act as a Google Discover Specialist in 2026. 
-            Analyze this content for the mobile 'Interest Feed' algorithm.
-
-            HEADLINE: {final_headline}
-            TOPIC: {final_topic}
-
-            STRICT OUTPUT RULES:
-            - Keep the analysis **short and punchy** (bullet points only, no fluff).
-            - All suggested headlines must be in **sentence case** (only capitalize the first letter and proper nouns).
-
-            1. SCORECARD (1-10) with 1-sentence rationale:
-               - Curiosity Gap
-               - Entity Recognition
-               - Trustworthiness (E-E-A-T)
-               - Discover Potential
-
-            2. OPTIMIZED ALTERNATES: 
-               Provide 3 better headlines in **sentence case**. 
-               For EACH alternate, strictly follow this format:
-               * **[Headline Text]**
-                 - *Predicted CTR:* [Percentage]
-                 - *Why it wins:* [Explain the specific psychological or algorithmic reason this scores higher than the original]
-            """
-
             with st.spinner("🧠 Reasoning through Interest Graph..."):
-                response = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=prompt,
-                    config=types.GenerateContentConfig(
-                        thinking_config=types.ThinkingConfig(include_thoughts=True)
-                    )
-                )
+                # Call the CACHED function
+                # If you click 'Analyze' again on the same headline, this runs instantly.
+                result = analyze_content(final_headline, final_topic, api_key)
 
                 # Thinking Expandable
-                if hasattr(response, 'thoughts'):
+                if result.get('thoughts'):
                     with st.expander("👁️ View Strategic Reasoning"):
-                        st.markdown(response.thoughts)
+                        st.markdown(result['thoughts'])
 
                 # Feed Preview
                 st.subheader("📱 Discover Feed Simulation")
@@ -121,7 +140,7 @@ if submit_btn:
                     st.caption(f"Source • {final_topic if final_topic else 'General'} • 2026 Algorithm")
 
                 st.divider()
-                st.markdown(response.text)
+                st.markdown(result['text'])
 
         except Exception as e:
             st.error(f"Analysis Error: {str(e)}")
