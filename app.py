@@ -18,33 +18,45 @@ else:
         st.warning("⚠️ No API Key found in secrets.")
         api_key = st.text_input("Enter Gemini API Key manually:", type="password")
 
-# --- HELPER: WEB SCRAPER ---
-# We cache this too so we don't re-scrape the same URL unnecessarily
+# --- HELPER: ROBUST WEB SCRAPER ---
 @st.cache_data(show_spinner=False)
 def fetch_article_data(url):
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
-        response = requests.get(url, headers=headers, timeout=10)
+        # 1. Use headers that look like a real Chrome browser to avoid being blocked
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Referer': 'https://www.google.com/'
+        }
+        
+        response = requests.get(url, headers=headers, timeout=15)
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # Extract Headline and Description
-        title = soup.find('h1').get_text() if soup.find('h1') else (soup.find('title').get_text() if soup.find('title') else "No title found")
-        meta_desc = soup.find('meta', attrs={'name': 'description'})
-        topic_hint = meta_desc['content'] if meta_desc else "General Content"
+        # 2. STRICT H1 EXTRACTION
+        title = "No Headline Found"
         
-        return title.strip(), topic_hint.strip()
+        # Priority A: Look for the first <h1> tag
+        h1_tag = soup.find('h1')
+        if h1_tag:
+            title = h1_tag.get_text(separator=' ', strip=True)
+        # Priority B: Fallback to <title> tag if no H1 exists
+        elif soup.title:
+            title = soup.title.get_text(separator=' ', strip=True)
+        
+        # 3. Extract Meta Description (or OG Description)
+        meta_desc = soup.find('meta', attrs={'name': 'description'}) or soup.find('meta', attrs={'property': 'og:description'})
+        topic_hint = meta_desc['content'].strip() if meta_desc and meta_desc.get('content') else "General Content"
+        
+        return title, topic_hint
+
     except Exception as e:
         return None, str(e)
 
 # --- CORE LOGIC: CACHED AI ANALYSIS ---
-# This is the key fix. We wrap the API call in a cached function.
-# Streamlit will store the result for this specific combination of inputs.
 @st.cache_data(show_spinner=False)
 def analyze_content(headline, topic, _api_key):
-    # Note: _api_key starts with an underscore to tell Streamlit NOT to hash it for caching purposes
-    # (though usually fine here, it's best practice for secrets)
-    
     client = genai.Client(api_key=_api_key)
     
     prompt = f"""
@@ -80,7 +92,6 @@ def analyze_content(headline, topic, _api_key):
         )
     )
     
-    # We return an object or dict containing both thoughts and text
     return {
         "text": response.text,
         "thoughts": getattr(response, 'thoughts', None)
@@ -123,8 +134,6 @@ if submit_btn:
     else:
         try:
             with st.spinner("🧠 Reasoning through Interest Graph..."):
-                # Call the CACHED function
-                # If you click 'Analyze' again on the same headline, this runs instantly.
                 result = analyze_content(final_headline, final_topic, api_key)
 
                 # Thinking Expandable
