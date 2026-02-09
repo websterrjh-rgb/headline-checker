@@ -18,15 +18,14 @@ else:
         st.warning("⚠️ No API Key found in secrets.")
         api_key = st.text_input("Enter Gemini API Key manually:", type="password")
 
-# --- HELPER: ROBUST WEB SCRAPER ---
+# --- HELPER: SMART SCRAPER (v2.0) ---
 @st.cache_data(show_spinner=False)
 def fetch_article_data(url):
     try:
-        # 1. Use headers that look like a real Chrome browser to avoid being blocked
+        # Fake a real browser to avoid being blocked
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Language': 'en-US,en;q=0.9',
             'Referer': 'https://www.google.com/'
         }
         
@@ -34,22 +33,51 @@ def fetch_article_data(url):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # 2. STRICT H1 EXTRACTION
-        title = "No Headline Found"
+        # --- TITLE EXTRACTION STRATEGY ---
+        title = None
         
-        # Priority A: Look for the first <h1> tag
-        h1_tag = soup.find('h1')
-        if h1_tag:
-            title = h1_tag.get_text(separator=' ', strip=True)
-        # Priority B: Fallback to <title> tag if no H1 exists
-        elif soup.title:
-            title = soup.title.get_text(separator=' ', strip=True)
+        # Priority 1: Open Graph Title (The "Social" Headline) - Best for Discover
+        og_title = soup.find('meta', property='og:title')
+        if og_title and og_title.get('content'):
+            title = og_title['content'].strip()
+            
+        # Priority 2: Twitter Card Title
+        if not title:
+            tw_title = soup.find('meta', name='twitter:title')
+            if tw_title and tw_title.get('content'):
+                title = tw_title['content'].strip()
+
+        # Priority 3: H1 Tag (With "Club/Welcome" Filter)
+        if not title:
+            h1_tags = soup.find_all('h1')
+            for h1 in h1_tags:
+                text = h1.get_text(separator=' ', strip=True)
+                # Filter out common garbage H1s
+                if len(text) > 5 and "welcome to" not in text.lower() and "subscribe" not in text.lower():
+                    title = text
+                    break
         
-        # 3. Extract Meta Description (or OG Description)
-        meta_desc = soup.find('meta', attrs={'name': 'description'}) or soup.find('meta', attrs={'property': 'og:description'})
-        topic_hint = meta_desc['content'].strip() if meta_desc and meta_desc.get('content') else "General Content"
+        # Priority 4: HTML Title Tag (Cleaned)
+        if not title and soup.title:
+            raw_title = soup.title.get_text(separator=' ', strip=True)
+            # Remove site name from end (e.g., "Headline | Tom's Guide" -> "Headline")
+            title = raw_title.split('|')[0].split(' - ')[0].strip()
+
+        # Fallback
+        if not title:
+            title = "No Headline Found"
+
+        # --- DESCRIPTION EXTRACTION ---
+        desc = "General Content"
+        og_desc = soup.find('meta', property='og:description')
+        meta_desc = soup.find('meta', attrs={'name': 'description'})
         
-        return title, topic_hint
+        if og_desc and og_desc.get('content'):
+            desc = og_desc['content'].strip()
+        elif meta_desc and meta_desc.get('content'):
+            desc = meta_desc['content'].strip()
+
+        return title, desc
 
     except Exception as e:
         return None, str(e)
